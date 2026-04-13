@@ -1,0 +1,10 @@
+bundle agent main
+{
+  reports:
+    "hi" -> {
+        "yoda",
+        # this is yoda of course
+        "boba"
+        # and yet another star wars character
+      };
+}
