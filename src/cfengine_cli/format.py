@@ -301,7 +301,9 @@ def _stakeholder_has_comments(children: list[Node]) -> bool:
 
 
 def _has_trailing_comma(middle: list[Node]) -> bool:
+    print("CRAIG: _has_trailing_comma()")
     """Check if a list's middle nodes end with a trailing comma."""
+    print(f"CRAIG: {middle}")
     for node in reversed(middle):
         if node.type == ",":
             return True
@@ -312,20 +314,27 @@ def _has_trailing_comma(middle: list[Node]) -> bool:
 
 def _promiser_text(children: list[Node]) -> str | None:
     """Return the raw promiser string from promise children, or None."""
+    print(f"CRAIG: children: {children}")
     promiser_node = next((c for c in children if c.type == "promiser"), None)
     if not promiser_node:
         return None
+    print(f"CRAIG: promiser_node: {promiser_node}")
+    txt = text(promiser_node)
+    print(f"CRAIG: text(promiser_node): {txt}")
     return text(promiser_node)
 
 
 def _promiser_line_with_stakeholder(children: list[Node]) -> str | None:
     """Build the full promiser line including '-> { stakeholder }', or None."""
+    print(f"CRAIG: _promiser_line_with_stakeholder(), children: {children}")
     prefix = _promiser_text(children)
     if not prefix:
+        print("CRAIG: _promiser_line_with_stakeholder() found no prefix so return None")
         return None
     arrow = next((c for c in children if c.type == "->"), None)
     stakeholder = next((c for c in children if c.type == "stakeholder"), None)
     if arrow and stakeholder:
+        print(f"CRAIG: _promiser_line_with_stakeholder() found arrow and stakeholder so add them to prefix")
         prefix += " " + text(arrow) + " " + stringify_single_line_node(stakeholder)
     return prefix
 
@@ -335,9 +344,11 @@ def _stakeholder_needs_splitting(
 ) -> bool:
     """Check if the stakeholder list must be split (comments or too long)."""
     if _stakeholder_has_comments(children):
+        print(f"CRAIG: _stakeholder_needs_splitting() returning True due to has comments: {children}")
         return True
     line = _promiser_line_with_stakeholder(children)
     if not line:
+        print("CRAIG: _stakeholder_needs_splitting() returning False because _promiser_line_with_stakeholder() returned None")
         return False
     return indent + len(line) > line_length
 
@@ -350,6 +361,8 @@ def _format_stakeholder_elements(
     Uses trailing-comma heuristic: lists with a trailing comma are always
     split one-per-line; without, they may stay on a single line.
     """
+    print("CRAIG: _format_stakeholder_elements()")
+    print(f"CRAIG: middle: {middle}")
     if not any(n.type == "comment" for n in middle):
         if _has_trailing_comma(middle):
             return split_generic_list(middle, indent, line_length)
@@ -381,6 +394,9 @@ def _format_stakeholder_elements(
 
 def _has_stakeholder(children: list[Node]) -> bool:
     """Check if promise children include a stakeholder node."""
+    print(f"CRAIG: _has_stakeholder({children})")
+    found = any(c.type == "stakeholder" for c in children)
+    print(f"CRAIG: found stakeholder? {found}")
     return any(c.type == "stakeholder" for c in children)
 
 
@@ -390,20 +406,26 @@ def can_single_line_promise(node: Node, indent: int, line_length: int) -> bool:
     Returns False for multi-attribute promises, promises with a
     half_promise continuation, or stakeholder+attribute combinations.
     """
+    print(f"CRAIG: can_single_line_promise() node: {node}, ...")
     if node.type != "promise":
+        print("CRAIG: can_single_line_promise() found node.type != promise, return False")
         return False
     children = node.children
     attrs = [c for c in children if c.type == "attribute"]
     next_sib = node.next_named_sibling
     if len(attrs) > 1 or (next_sib and next_sib.type == "half_promise"):
+        print(f"CRAIG: can_single_line_promise() returning false, attrs: {attrs}, next_sib: {next_sib}")
         return False
     if _has_stakeholder(children) and attrs:
+        print(f"CRAIG: can_single_line_promise() returning false because no stakeholder in: children: {children}")
         return False
     if _has_stakeholder(children) and _stakeholder_needs_splitting(
         children, indent, line_length
     ):
+        print(f"CRAIG: can_single_line_promise() returning false because no stakeholder in children: {children} and stakeholder needs splitting")
         return False
     line = _promiser_line_with_stakeholder(children)
+    print(f"CRAIG: can_single_line_promise(), got {line} from _promiser_line_with_stakeholder()")
     if not line:
         return False
     if attrs:
@@ -423,7 +445,9 @@ def _format_promise(
 ) -> bool:
     """Format a promise node. Returns True if handled, False to fall through."""
     # Single-line promise
+    print(f"CRAIG: _format_promise()")
     if can_single_line_promise(node, indent, line_length):
+        print("CRAIG, can_single_line_promise() returned true")
         prefix = _promiser_line_with_stakeholder(children)
         assert prefix is not None
         attr = next((c for c in children if c.type == "attribute"), None)
@@ -434,10 +458,12 @@ def _format_promise(
         fmt.print(line, indent)
         return True
 
+    print(f"CRAIG: _format_promise() check for stakeholder and needs splitting. children: {children}")
     # Multi-line with split stakeholder
     if _has_stakeholder(children) and _stakeholder_needs_splitting(
         children, indent, line_length
     ):
+        print("CRAIG: _format_promise() had stakeholder and needed splitting...")
         attrs = [c for c in children if c.type == "attribute"]
         promiser = _promiser_text(children)
         assert promiser is not None

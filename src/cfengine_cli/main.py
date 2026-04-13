@@ -157,6 +157,7 @@ def validate_args(args):
 
 
 def _main():
+    print("CRAIG: main()")
     args = get_args()
     if args.log_level:
         log.set_level(args.log_level)
